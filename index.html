@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>電子繪本</title>
+<style>
+  body{margin:0;height:100vh;background:#2b1d14;color:#fff;
+       display:flex;flex-direction:column;align-items:center;justify-content:center;
+       font-family:"Microsoft JhengHei",sans-serif;overflow:hidden}
+  #page{height:76vh;width:auto;max-width:92vw;object-fit:contain;
+        box-shadow:0 8px 30px #000;transition:opacity .35s}
+  #page.fade{opacity:0}
+  #bar{display:flex;align-items:center;gap:22px;margin-top:14px}
+  #bar img{height:44px;cursor:pointer;border-radius:6px}
+  #bar img:hover{filter:brightness(1.3)}
+  #bar img.disabled{opacity:.3;pointer-events:none}
+  #num{min-width:70px;text-align:center}
+  label{font-size:14px;cursor:pointer;user-select:none}
+  #start{position:fixed;inset:0;background:#2b1d14;display:flex;flex-direction:column;
+         align-items:center;justify-content:center;gap:20px;z-index:9;font-size:28px;cursor:pointer}
+  #start img{height:160px}
+</style>
+</head>
+<body>
+
+<!-- 瀏覽器規定要使用者先點一下才能播放聲音 -->
+<div id="start">
+  <img src="graphics/spirit.png" alt="">
+  <div>點擊開始閱讀</div>
+</div>
+
+<img id="page" src="graphics/0.jpg" alt="繪本頁面">
+
+<div id="bar">
+  <img id="prev" src="graphics/left.jpg"  alt="上一頁">
+  <img id="read" src="graphics/read.jpg"  alt="重新朗讀">
+  <span id="num"></span>
+  <img id="next" src="graphics/right.jpg" alt="下一頁">
+  <label><input type="checkbox" id="auto"> 自動翻頁</label>
+</div>
+
+<audio id="bgm" loop></audio>   <!-- 每頁音樂 -->
+<audio id="voice"></audio>      <!-- 每頁旁白 -->
+
+<script>
+  const TOTAL = 20;            // 0.jpg ~ 19.jpg
+  let cur = 0;
+
+  const page  = document.getElementById('page');
+  const num   = document.getElementById('num');
+  const bgm   = document.getElementById('bgm');
+  const voice = document.getElementById('voice');
+  const auto  = document.getElementById('auto');
+  const prev  = document.getElementById('prev');
+  const next  = document.getElementById('next');
+
+  bgm.volume = 0.25;           // 音樂小聲，讓旁白清楚
+
+  function show(n){
+    if(n < 0 || n >= TOTAL) return;
+    cur = n;
+
+    // 換圖（淡出 → 換 → 淡入）
+    page.classList.add('fade');
+    setTimeout(()=>{
+      page.onload = ()=> page.classList.remove('fade');
+      page.src = `graphics/${cur}.jpg`;
+    }, 250);
+
+    num.textContent = `${cur+1} / ${TOTAL}`;
+    prev.classList.toggle('disabled', cur === 0);
+    next.classList.toggle('disabled', cur === TOTAL-1);
+
+    // 換音樂與旁白
+    bgm.src = `music/music${cur}.mp3`;
+    bgm.play().catch(()=>{});
+    voice.src = `speech/speech${cur}.mp3`;
+    voice.play().catch(()=>{});
+  }
+
+  // 旁白播完後，若勾選「自動翻頁」就翻到下一頁
+  voice.onended = ()=>{ if(auto.checked) show(cur+1); };
+
+  document.getElementById('start').onclick = e=>{
+    e.currentTarget.style.display = 'none';
+    show(0);
+  };
+  prev.onclick = ()=> show(cur-1);
+  next.onclick = ()=> show(cur+1);
+  document.getElementById('read').onclick = ()=>{ voice.currentTime = 0; voice.play(); };
+
+  // 鍵盤左右鍵
+  document.addEventListener('keydown', e=>{
+    if(e.key==='ArrowRight') show(cur+1);
+    if(e.key==='ArrowLeft')  show(cur-1);
+  });
+
+  // 手機左右滑動
+  let x0 = 0;
+  document.addEventListener('touchstart', e=> x0 = e.touches[0].clientX);
+  document.addEventListener('touchend', e=>{
+    const dx = e.changedTouches[0].clientX - x0;
+    if(Math.abs(dx) > 50) show(dx < 0 ? cur+1 : cur-1);
+  });
+</script>
+</body>
+</html>
